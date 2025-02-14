@@ -160,8 +160,14 @@ dependencies = [
  "nb 1.1.0",
  "panic-halt",
  "proc-macro2",
+ "pseudo-adcs-protocol",
  "ufmt",
 ]
+
+[[package]]
+name = "pseudo-adcs-protocol"
+version = "0.1.0"
+source = "git+https://github.com/YassenEfremov/pseudo-adcs-protocol#05969347c0cee66b33830b5d5d1bf10826869e28"
 
 [[package]]
 name = "quote"

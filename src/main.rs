@@ -5,74 +5,17 @@ use core::mem::size_of;
 
 use arduino_hal::prelude::*;
 use panic_halt as _;
+use pseudo_adcs_protocol::{commands::Command, data_format::MyFrame};
 
-// my frame format:
-//
-//    0                   1
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |  X high bits  |  X low bits   |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |  Y high bits  |  Y low bits   |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |  Y high bits  |  Z low bits   |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-struct MyFrame {
-    x_h: u8,
-    x_l: u8,
-    y_h: u8,
-    y_l: u8,
-    z_h: u8,
-    z_l: u8,
-}
-
-impl MyFrame {
-    fn new() -> Self {
-        Self {
-            x_h: 0, x_l: 0,
-            y_h: 0, y_l: 0,
-            z_h: 0, z_l: 0
-        }
-    }
-
-    fn from(buf: [u8; size_of::<Self>()]) -> Self {
-        Self {
-            x_h: buf[0], x_l: buf[1],
-            y_h: buf[2], y_l: buf[3],
-            z_h: buf[4], z_l: buf[5]
-        }
-    }
-
-    fn get_x(&self) -> i16 {
-        (((self.x_h as u16) << 8) | (self.x_l as u16)) as i16
-    }
-
-    fn get_y(&self) -> i16 {
-        (((self.y_h as u16) << 8) | (self.y_l as u16)) as i16
-    }
-
-    fn get_z(&self) -> i16 {
-        (((self.z_h as u16) << 8) | (self.z_l as u16)) as i16
-    }
-
-    fn as_bytes(&self) -> [u8; size_of::<Self>()] {
-        return [
-            self.x_h, self.x_l,
-            self.y_h, self.y_l,
-            self.z_h, self.z_l,
-        ];
-    }
-}
 
 #[arduino_hal::entry]
 fn main() -> ! {
 
     let dp = arduino_hal::Peripherals::take().unwrap();
     let pins = arduino_hal::pins!(dp);
-    let mut serial = arduino_hal::default_serial!(dp, pins, 115200);
-    let mut led = pins.d13.into_output();
 
+    let mut led = pins.d13.into_output();
+    let mut serial = arduino_hal::default_serial!(dp, pins, 115200);
     let mut i2c = arduino_hal::I2c::new(
         dp.TWI,
         pins.a4.into_pull_up_input(),
@@ -103,9 +46,13 @@ fn main() -> ! {
     let mut y: i32 = 0;
     let mut z: i32 = 0;
 
+    let mut target_x: i32 = 0;
+    let mut target_y: i32 = 0;
+    let mut target_z: i32 = 0;
+
     let mut status_reg_buf: [u8; 1] = [0];
 
-    let mut my_frame = MyFrame::new();
+    let mut out_frame = MyFrame::new();
     let mut buf: [u8; 1] = [0x00];
 
 
@@ -114,6 +61,32 @@ fn main() -> ! {
     i2c.write(ADDR, &[CTRL_REG1, 0x0F]);
 
     loop {
+
+        // if let Ok(command_number) = serial.read() {
+        //     if let Ok(command) = Command::from(command_number) {
+        //         match command {
+        //             Command::SetAttitude => {
+        //                 led.set_high();
+        //                 arduino_hal::delay_ms(100);
+        //                 led.set_low();
+        //                 // let mut buffer = [0x00; size_of::<MyFrame>()];
+        //                 // let mut tail: usize = 0;
+        //                 // while let Ok(byte) = serial.read() {
+        //                 //     if tail == buffer.len() {
+        //                 //         break;
+        //                 //     }
+        //                 //     buffer[tail] = byte;
+        //                 //     tail += 1;
+        //                 // }
+        //                 // let in_frame = MyFrame::from_fixed(&buffer);
+        //                 // target_x = in_frame.get_x() as i32;
+        //                 // target_y = in_frame.get_y() as i32;
+        //                 // target_z = in_frame.get_z() as i32;
+        //             },
+        //         }
+        //     }
+        // }
+
         // // i2c.write_read(0x69, &[0x0F], &mut buf);
         // // i2c.write_read(0x69, &[0x20, 0x08], &mut buf);
         i2c.write_read(ADDR, &[STATUS_REG], &mut status_reg_buf);
@@ -122,34 +95,35 @@ fn main() -> ! {
 
             i2c.write_read(ADDR, &[OUT_X_L], &mut buf);
             // serial.write(buf[0]);
-            my_frame.x_l = buf[0];
+            out_frame.x_l = buf[0];
             i2c.write_read(ADDR, &[OUT_X_H], &mut buf);
             // serial.write(buf[0]);
-            my_frame.x_h = buf[0];
+            out_frame.x_h = buf[0];
             // let x_raw: i16 = (((x_h_buf[0] as u16) << 8) | ((x_l_buf[0]) as u16)) as i16;
-            // x += (my_frame.get_x() as i32)/200;
+            x += (out_frame.get_x() as i32)/200;
 
             i2c.write_read(ADDR, &[OUT_Y_L], &mut buf);
             // serial.write(buf[0]);
-            my_frame.y_l = buf[0];
+            out_frame.y_l = buf[0];
             i2c.write_read(ADDR, &[OUT_Y_H], &mut buf);
             // serial.write(buf[0]);
-            my_frame.y_h = buf[0];
+            out_frame.y_h = buf[0];
             // let y_raw: i16 = (((y_h_buf[0] as u16) << 8) | ((y_l_buf[0]) as u16)) as i16;
-            // y += (my_frame.get_y() as i32)/200;
+            y += (out_frame.get_y() as i32)/200;
 
             i2c.write_read(ADDR, &[OUT_Z_L], &mut buf);
             // serial.write(buf[0]);
-            my_frame.z_l = buf[0];
+            out_frame.z_l = buf[0];
             i2c.write_read(ADDR, &[OUT_Z_H], &mut buf);
             // serial.write(buf[0]);
-            my_frame.z_h = buf[0];
+            out_frame.z_h = buf[0];
             // let z_raw: i16 = (((z_h_buf[0] as u16) << 8) | ((z_l_buf[0]) as u16)) as i16;
-            // z += (my_frame.get_z() as i32)/200;
+            z += (out_frame.get_z() as i32)/200;
 
-            for byte in my_frame.as_bytes() {
+            for byte in out_frame.as_bytes() {
                 serial.write_byte(byte);
             }
+
             // ufmt::uwriteln!(serial, "{} {} {} ({} {} {})",
             //                 x/50,
             //                 y/50,
@@ -157,12 +131,6 @@ fn main() -> ! {
             //                 my_frame.get_x(), my_frame.get_y(), my_frame.get_z());
         }
 
-        // let res = serial.read();
-        // if let Ok(c) = res {
-        //     if c as char == 'Z' {
-        //         led.toggle();
-        //     }
-        // }
         // arduino_hal::delay_ms(100);
     }
 }

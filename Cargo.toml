@@ -24,6 +24,9 @@ features = ["arduino-uno"]
 [dependencies.avr-device]
 version = "0.7"
 
+[dependencies.pseudo-adcs-protocol]
+git = "https://github.com/YassenEfremov/pseudo-adcs-protocol"
+
 # The latest releases of `proc-macro2` do not support the rust toolchain that
 # we use.  Thus, we must fix this dependency to an older version where our
 # toolchain is still supported.  See https://github.com/Rahix/avr-hal/issues/537
