@@ -8,7 +8,7 @@ use arduino_hal::{
 };
 use l3gd20::L3GD20;
 use panic_halt as _;
-use pseudo_adcs_protocol::{commands::Command, data_format::MyFrame};
+use pseudo_adcs_protocol::message::SAT;
 
 mod l3gd20;
 
@@ -38,34 +38,37 @@ fn main() -> ! {
     let mut target_y: i32 = 0;
     let mut target_z: i32 = 0;
 
-    // let mut out_frame = MyFrame::new();
+    let mut target_attitude_achieved = true;
 
     l3gd20.enable();
 
     loop {
 
         if let Ok(command_number) = serial.read() {
-            if let Ok(command) = Command::from(command_number) {
-                match command {
-                    Command::SetAttitude => {
-                        led.set_high();
-                        delay_ms(100);
-                        led.set_low();
-                        // let mut buffer = [0x00; size_of::<MyFrame>()];
-                        // let mut tail: usize = 0;
-                        // while let Ok(byte) = serial.read() {
-                        //     if tail == buffer.len() {
-                        //         break;
-                        //     }
-                        //     buffer[tail] = byte;
-                        //     tail += 1;
-                        // }
-                        // let in_frame = MyFrame::from_fixed(&buffer);
-                        // target_x = in_frame.get_x() as i32;
-                        // target_y = in_frame.get_y() as i32;
-                        // target_z = in_frame.get_z() as i32;
-                    },
-                }
+            match command_number {
+                0x02 => {
+                    led.set_high();
+                    delay_ms(100);
+                    led.set_low();
+
+                    let mut buffer = [0x00; 6];
+                    let mut tail: usize = 0;
+                    while let Ok(byte) = serial.read() {
+                        if tail == buffer.len() {
+                            break;
+                        }
+                        buffer[tail] = byte;
+                        tail += 1;
+                    }
+                    if tail == buffer.len() {
+                        let nas_payload = SAT::from_fixed(&buffer);
+                        target_x = nas_payload.get_x() as i32;
+                        target_y = nas_payload.get_y() as i32;
+                        target_z = nas_payload.get_z() as i32;
+                        target_attitude_achieved = false;
+                    }
+                },
+                _ => ()
             }
         }
 
@@ -76,6 +79,7 @@ fn main() -> ! {
             y += (l3gd20.get_y() as i32)/200;
             z += (l3gd20.get_z() as i32)/200;
 
+            serial.write_byte(0x01);
             for byte in [
                 l3gd20.read_x_h(), l3gd20.read_x_l(),
                 l3gd20.read_y_h(), l3gd20.read_y_l(),
@@ -89,6 +93,12 @@ fn main() -> ! {
             //                 y/50,
             //                 z/50,
             //                 my_frame.get_x(), my_frame.get_y(), my_frame.get_z());
+        }
+
+        let old_state = target_attitude_achieved;
+        target_attitude_achieved = x == target_x && y == target_y && z == target_z;      
+        if target_attitude_achieved != old_state {
+            serial.write_byte(0x03);
         }
 
         // arduino_hal::delay_ms(100);
