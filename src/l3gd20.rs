@@ -61,7 +61,7 @@ impl L3GD20 {
         match &mut self.bus {
             L3GD20Bus::I2C(i2c) => {
 				let mut buffer: [u8; 1] = [0x00];
-				i2c.write_read(ADDR, &[OUT_X_L], &mut buffer);
+				i2c.write_read(ADDR, &[OUT_X_H], &mut buffer);
 				buffer[0]
             },
             // L3GD20Bus::SPI(spi) => ()
@@ -72,22 +72,23 @@ impl L3GD20 {
         match &mut self.bus {
             L3GD20Bus::I2C(i2c) => {
 				let mut buffer: [u8; 1] = [0x00];
-				i2c.write_read(ADDR, &[OUT_X_H], &mut buffer);
+				i2c.write_read(ADDR, &[OUT_X_L], &mut buffer);
 				buffer[0]
             },
             // L3GD20Bus::SPI(spi) => ()
         }
 	}
 
-    pub fn get_x(&mut self) -> u16 {
-		(((self.read_x_h() as u16) << 8) | (self.read_x_l() as u16)) as u16
+    pub fn get_x(&mut self) -> i16 {
+		// (((self.read_x_h() as u16) << 8) | (self.read_x_l() as u16)) as u16
+		i16::from_be_bytes([self.read_x_h(), self.read_x_l()])
     }
 
     pub fn read_y_h(&mut self) -> u8 {
         match &mut self.bus {
             L3GD20Bus::I2C(i2c) => {
 				let mut buffer: [u8; 1] = [0x00];
-				i2c.write_read(ADDR, &[OUT_Y_L], &mut buffer);
+				i2c.write_read(ADDR, &[OUT_Y_H], &mut buffer);
 				buffer[0]
             },
             // L3GD20Bus::SPI(spi) => ()
@@ -98,22 +99,23 @@ impl L3GD20 {
         match &mut self.bus {
             L3GD20Bus::I2C(i2c) => {
 				let mut buffer: [u8; 1] = [0x00];
-				i2c.write_read(ADDR, &[OUT_Y_H], &mut buffer);
+				i2c.write_read(ADDR, &[OUT_Y_L], &mut buffer);
 				buffer[0]
             },
             // L3GD20Bus::SPI(spi) => ()
         }
 	}
 
-    pub fn get_y(&mut self) -> u16 {
-		(((self.read_y_h() as u16) << 8) | (self.read_y_l() as u16)) as u16
+    pub fn get_y(&mut self) -> i16 {
+		// (((self.read_y_h() as u16) << 8) | (self.read_y_l() as u16)) as u16
+		i16::from_be_bytes([self.read_y_h(), self.read_y_l()])
     }
 
     pub fn read_z_h(&mut self) -> u8 {
         match &mut self.bus {
             L3GD20Bus::I2C(i2c) => {
 				let mut buffer: [u8; 1] = [0x00];
-				i2c.write_read(ADDR, &[OUT_Z_L], &mut buffer);
+				i2c.write_read(ADDR, &[OUT_Z_H], &mut buffer);
 				buffer[0]
             },
             // L3GD20Bus::SPI(spi) => ()
@@ -124,15 +126,16 @@ impl L3GD20 {
         match &mut self.bus {
             L3GD20Bus::I2C(i2c) => {
 				let mut buffer: [u8; 1] = [0x00];
-				i2c.write_read(ADDR, &[OUT_Z_H], &mut buffer);
+				i2c.write_read(ADDR, &[OUT_Z_L], &mut buffer);
 				buffer[0]
             },
             // L3GD20Bus::SPI(spi) => ()
         }
 	}
 
-    pub fn get_z(&mut self) -> u16 {
-		(((self.read_z_h() as u16) << 8) | (self.read_z_l() as u16)) as u16
+    pub fn get_z(&mut self) -> i16 {
+		// (((self.read_z_h() as u16) << 8) | (self.read_z_l() as u16)) as u16
+		i16::from_be_bytes([self.read_z_h(), self.read_z_l()])
     }
 
     // for filters
