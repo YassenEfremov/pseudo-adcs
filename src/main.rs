@@ -58,9 +58,11 @@ fn main() -> ! {
                 target_y = sat_payload.get_y() as i32;
                 target_z = sat_payload.get_z() as i32;
                 target_attitude_achieved = false;
+                led.set_high();
+                delay_ms(100);
+                led.set_low();
             }
         }
-
 
         if l3gd20.is_data_ready() {
 
@@ -70,6 +72,9 @@ fn main() -> ! {
 
             serial.write_byte(0x01);
             for byte in [
+                ((x/20) as u16).to_be_bytes()[0], ((x/20) as u16).to_be_bytes()[1],
+                ((y/20) as u16).to_be_bytes()[0], ((y/20) as u16).to_be_bytes()[1],
+                ((z/20) as u16).to_be_bytes()[0], ((z/20) as u16).to_be_bytes()[1],
                 l3gd20.read_x_h(), l3gd20.read_x_l(),
                 l3gd20.read_y_h(), l3gd20.read_y_l(),
                 l3gd20.read_z_h(), l3gd20.read_z_l()
